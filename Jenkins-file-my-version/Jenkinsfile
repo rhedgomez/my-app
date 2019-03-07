@@ -1,0 +1,37 @@
+node{
+    stage('GIT SCM CHECKOUT'){
+        git credentialsId: 'git-creds', url: 'https://github.com/rhedgomez/my-app'
+
+    }
+    
+    stage('MVN PACKAGE'){
+        sh 'mvn clean install'
+
+    }
+    
+    stage('BUILD DOCKER IMAGE'){
+        sh 'docker build -t rhedgomez/my-app:2.0.0 .'
+
+    }
+    
+    stage('PUSH DOCKER IMAGE'){
+        withCredentials([string(credentialsId: 'docker-pwd', variable: 'dockerHubPwd')]) {
+            sh "docker login -u rhedgomez -p ${dockerHubPwd}"
+            }
+        sh 'docker push rhedgomez/my-app:2.0.0'
+
+    }
+    
+    stage('RUN CONTAINER ON THE DEV-SERVER'){
+        def dockerRun = 'docker run -p 8080:8080 -d --name my-app rhedgomez/my-app:2.0.0'
+        sshagent(['dev-server']) {
+            sh "ssh -o StrictHostKeyChecking=no centos@18.228.7.149 ${dockerRun}"
+        }
+    }
+        
+         /*dev-server is credentialid when adding a user in Jenkins(please see outlook notes Jenkins for info of the screenshot)
+          StrictHostKeyChecking=no if its your first to connec 
+            to a server there is like a prompt and it needs to be answered by yes or no
+         */
+}
+    
